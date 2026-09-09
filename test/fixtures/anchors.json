@@ -1,0 +1,1102 @@
+{
+ "exprs": [
+  {
+   "expr": "a & b",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    3
+   ],
+   "maxterms": [
+    0,
+    1,
+    2
+   ],
+   "dnf": "(a & b)",
+   "cnf": "(a | b) & (a | !b) & (!a | b)"
+  },
+  {
+   "expr": "a | b",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    1,
+    2,
+    3
+   ],
+   "maxterms": [
+    0
+   ],
+   "dnf": "(!a & b) | (a & !b) | (a & b)",
+   "cnf": "(a | b)"
+  },
+  {
+   "expr": "a ^ b",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 0
+    }
+   ],
+   "minterms": [
+    1,
+    2
+   ],
+   "maxterms": [
+    0,
+    3
+   ],
+   "dnf": "(!a & b) | (a & !b)",
+   "cnf": "(a | b) & (!a | !b)"
+  },
+  {
+   "expr": "a -> b",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    0,
+    1,
+    3
+   ],
+   "maxterms": [
+    2
+   ],
+   "dnf": "(!a & !b) | (!a & b) | (a & b)",
+   "cnf": "(!a | b)"
+  },
+  {
+   "expr": "a <-> b",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    0,
+    3
+   ],
+   "maxterms": [
+    1,
+    2
+   ],
+   "dnf": "(!a & !b) | (a & b)",
+   "cnf": "(a | !b) & (!a | b)"
+  },
+  {
+   "expr": "!(a & b)",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 0
+    }
+   ],
+   "minterms": [
+    0,
+    1,
+    2
+   ],
+   "maxterms": [
+    3
+   ],
+   "dnf": "(!a & !b) | (!a & b) | (a & !b)",
+   "cnf": "(!a | !b)"
+  },
+  {
+   "expr": "a | !a",
+   "vars": [
+    "a"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 1,
+     "bits": [
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    0,
+    1
+   ],
+   "maxterms": [],
+   "dnf": "(!a) | (a)",
+   "cnf": ""
+  },
+  {
+   "expr": "a & !a",
+   "vars": [
+    "a"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      1
+     ],
+     "result": 0
+    }
+   ],
+   "minterms": [],
+   "maxterms": [
+    0,
+    1
+   ],
+   "dnf": "",
+   "cnf": "(a) & (!a)"
+  },
+  {
+   "expr": "(a & b) | (!a & c)",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    1,
+    3,
+    6,
+    7
+   ],
+   "maxterms": [
+    0,
+    2,
+    4,
+    5
+   ],
+   "dnf": "(!a & !b & c) | (!a & b & c) | (a & b & !c) | (a & b & c)",
+   "cnf": "(a | b | c) & (a | !b | c) & (!a | b | c) & (!a | b | !c)"
+  },
+  {
+   "expr": "a ^ b ^ c",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    1,
+    2,
+    4,
+    7
+   ],
+   "maxterms": [
+    0,
+    3,
+    5,
+    6
+   ],
+   "dnf": "(!a & !b & c) | (!a & b & !c) | (a & !b & !c) | (a & b & c)",
+   "cnf": "(a | b | c) & (a | !b | !c) & (!a | b | !c) & (!a | !b | c)"
+  },
+  {
+   "expr": "((a & b) | (a & c)) | (b & c)",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    3,
+    5,
+    6,
+    7
+   ],
+   "maxterms": [
+    0,
+    1,
+    2,
+    4
+   ],
+   "dnf": "(!a & b & c) | (a & !b & c) | (a & b & !c) | (a & b & c)",
+   "cnf": "(a | b | c) & (a | b | !c) & (a | !b | c) & (!a | b | c)"
+  },
+  {
+   "expr": "!(!a | b)",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 0
+    }
+   ],
+   "minterms": [
+    2
+   ],
+   "maxterms": [
+    0,
+    1,
+    3
+   ],
+   "dnf": "(a & !b)",
+   "cnf": "(a | b) & (a | !b) & (!a | !b)"
+  },
+  {
+   "expr": "a & (b | c)",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    5,
+    6,
+    7
+   ],
+   "maxterms": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "dnf": "(a & !b & c) | (a & b & !c) | (a & b & c)",
+   "cnf": "(a | b | c) & (a | b | !c) & (a | !b | c) & (a | !b | !c) & (!a | b | c)"
+  },
+  {
+   "expr": "(a | b) & (a | c)",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "maxterms": [
+    0,
+    1,
+    2
+   ],
+   "dnf": "(!a & b & c) | (a & !b & !c) | (a & !b & c) | (a & b & !c) | (a & b & c)",
+   "cnf": "(a | b | c) & (a | b | !c) & (a | !b | c)"
+  },
+  {
+   "expr": "!(a | b) <-> (!a & !b)",
+   "vars": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 2,
+     "bits": [
+      1,
+      0
+     ],
+     "result": 1
+    },
+    {
+     "index": 3,
+     "bits": [
+      1,
+      1
+     ],
+     "result": 1
+    }
+   ],
+   "minterms": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "maxterms": [],
+   "dnf": "(!a & !b) | (!a & b) | (a & !b) | (a & b)",
+   "cnf": ""
+  },
+  {
+   "expr": "(a ^ b) & c",
+   "vars": [
+    "a",
+    "b",
+    "c"
+   ],
+   "rows": [
+    {
+     "index": 0,
+     "bits": [
+      0,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 1,
+     "bits": [
+      0,
+      0,
+      1
+     ],
+     "result": 0
+    },
+    {
+     "index": 2,
+     "bits": [
+      0,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 3,
+     "bits": [
+      0,
+      1,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 4,
+     "bits": [
+      1,
+      0,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 5,
+     "bits": [
+      1,
+      0,
+      1
+     ],
+     "result": 1
+    },
+    {
+     "index": 6,
+     "bits": [
+      1,
+      1,
+      0
+     ],
+     "result": 0
+    },
+    {
+     "index": 7,
+     "bits": [
+      1,
+      1,
+      1
+     ],
+     "result": 0
+    }
+   ],
+   "minterms": [
+    3,
+    5
+   ],
+   "maxterms": [
+    0,
+    1,
+    2,
+    4,
+    6,
+    7
+   ],
+   "dnf": "(!a & b & c) | (a & !b & c)",
+   "cnf": "(a | b | c) & (a | b | !c) & (a | !b | c) & (!a | b | c) & (!a | !b | c) & (!a | !b | !c)"
+  }
+ ],
+ "equiv": [
+  {
+   "a": "!(a & b)",
+   "b": "!a | !b",
+   "equivalent": true
+  },
+  {
+   "a": "!(a | b)",
+   "b": "!a & !b",
+   "equivalent": true
+  },
+  {
+   "a": "a ^ b",
+   "b": "(a & !b) | (!a & b)",
+   "equivalent": true
+  },
+  {
+   "a": "a -> b",
+   "b": "!a | b",
+   "equivalent": true
+  },
+  {
+   "a": "a <-> b",
+   "b": "(a & b) | (!a & !b)",
+   "equivalent": true
+  },
+  {
+   "a": "!!a",
+   "b": "a",
+   "equivalent": true
+  },
+  {
+   "a": "a & (b | c)",
+   "b": "(a & b) | (a & c)",
+   "equivalent": true
+  },
+  {
+   "a": "a | (b & c)",
+   "b": "(a | b) & (a | c)",
+   "equivalent": true
+  },
+  {
+   "a": "a ^ b",
+   "b": "a | b",
+   "equivalent": false
+  },
+  {
+   "a": "a & !a",
+   "b": "a | !a",
+   "equivalent": false
+  },
+  {
+   "a": "a -> b",
+   "b": "b -> a",
+   "equivalent": false
+  }
+ ]
+}

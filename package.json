@@ -1,0 +1,58 @@
+{
+  "name": "dsh-boolean",
+  "version": "0.1.0",
+  "description": "Boolean algebra toolbox for DeepSeek Harness (dsh): parse logic expressions (NOT/AND/OR/XOR/IMPLIES/IFF, symbols or words), full truth tables with minterm/maxterm summary, single-assignment evaluation, equivalence checking with counterexamples, and canonical conversion (NNF/DNF/CNF/NAND-only/NOR-only) — zero runtime dependencies",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "oxlint src test"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "boolean-algebra",
+    "logic",
+    "truth-table",
+    "dnf",
+    "cnf",
+    "math-tools"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TYEclipse/dsh-boolean.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TYEclipse/dsh-boolean/issues"
+  },
+  "homepage": "https://github.com/TYEclipse/dsh-boolean#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-agent": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "@types/node": "^24.13.3",
+    "oxlint": "^1.6.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
