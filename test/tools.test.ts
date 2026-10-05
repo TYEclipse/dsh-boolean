@@ -2,6 +2,12 @@
  * Tests for dsh-boolean tool definitions: assembly, execute paths, guard rails
  * (variable limits, overlap/missing assignments, invalid names), render
  * functions, and the lossless-JSON no-undefined-key discipline on result trees.
+ *
+ * ORACLE: test/oracle/anchors.py
+ *
+ * (Every numeric anchor below — table sizes, minterm lists, counts, the 5-tool
+ * inventory and the 8-variable cap — is printed by that in-repo Python oracle;
+ * `python3 test/oracle/anchors.py --check` re-verifies it.)
  */
 
 import { describe, expect, it } from 'vitest'
@@ -37,8 +43,10 @@ describe('resolveConfig', () => {
 describe('buildBooleanTools', () => {
   const tools = buildBooleanTools()
 
-  it('exposes all four tools under their canonical names', () => {
-    expect(Object.keys(tools).sort()).toEqual(['logic_convert', 'logic_equiv', 'logic_eval', 'truth_table'].sort())
+  it('exposes all five tools under their canonical names', () => {
+    expect(Object.keys(tools).sort()).toEqual(
+      ['logic_convert', 'logic_equiv', 'logic_eval', 'logic_minimize', 'truth_table'].sort(),
+    )
   })
 
   it('gives every tool a name, description, schema and executable', () => {

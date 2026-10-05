@@ -1,14 +1,16 @@
 /**
- * Tool definitions for dsh-boolean: four boolean-algebra tools via defineTool.
- *   truth_table   — full truth table + minterm/maxterm summary + canonical DNF/CNF
- *   logic_eval    — evaluate an expression under one complete assignment
- *   logic_equiv   — equivalence check of two expressions over all rows
- *   logic_convert — canonical conversion: nnf / dnf / cnf / nand / nor
+ * Tool definitions for dsh-boolean: five boolean-algebra tools via defineTool.
+ *   truth_table    — full truth table + minterm/maxterm summary + canonical DNF/CNF
+ *   logic_eval     — evaluate an expression under one complete assignment
+ *   logic_equiv    — equivalence check of two expressions over all rows
+ *   logic_convert  — canonical conversion: nnf / dnf / cnf / nand / nor
+ *   logic_minimize — minimum sum-of-products (Quine–McCluskey), with don't-cares
  *
  * @module dsh-boolean/tools
  */
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { BooleanParseError, MAX_TABLE_VARS, cnfFromMaxterms, dnfFromMinterms, evaluate, expressionVars, nandForm, norForm, parseExpression, render, toNnf, truthTable, } from "./boolean.js";
+import { minimizeFunction } from "./minimize.js";
 const CONVERT_OPS = ['nnf', 'dnf', 'cnf', 'nand', 'nor'];
 const EXPR_DOC = 'Operators (precedence high to low): NOT !/not/¬, AND &/and/∧, XOR ^/xor/⊕, OR |/or/∨, IMPLIES ->/=>/→, IFF <->/<=>/↔. '
     + 'Variables are single letters a-z; use parentheses () to group. Binary operators are left-associative.';
@@ -107,6 +109,30 @@ function renderConvert(value) {
         return `logic_convert failed: ${result.error}`;
     const note = result.note === undefined ? '' : `\n  note: ${result.note}`;
     return `${result.operation} of ${result.input}:\n  ${result.output}${note}`;
+}
+function renderMinimize(value) {
+    const result = value;
+    if (!result.valid)
+        return `logic_minimize failed: ${result.error}`;
+    const minimal = result.minimal;
+    const shown = minimal.length === 0 ? '(empty: the function is false on every row)' : minimal;
+    const lines = [];
+    lines.push(`minimal SOP of ${result.expr} over ${result.vars.join(', ')}: ${shown}`);
+    lines.push(`  ${result.termCount} term(s), ${result.literalCount} literal(s)`
+        + ` (${result.exact ? 'proven minimum' : 'best found'}, ${result.unique ? 'unique' : 'a tie was resolved'})`);
+    const implicants = result.primeImplicants;
+    if (implicants.length > 0) {
+        const parts = implicants.map((pi) => {
+            const dc = pi.coversDontCare.length === 0 ? '' : ` dc[${pi.coversDontCare.join(', ')}]`;
+            return `${pi.term} m[${pi.covers.join(', ')}]${dc}`;
+        });
+        lines.push(`  prime implicants: ${parts.join('; ')}`);
+    }
+    const essentials = result.essentialTerms;
+    if (essentials.length > 0)
+        lines.push(`  essential: ${essentials.join(', ')}`);
+    const note = result.note === undefined ? '' : `\n  note: ${result.note}`;
+    return lines.join('\n') + note;
 }
 /** Build all four boolean tool definitions. */
 export function buildBooleanTools() {
@@ -412,6 +438,118 @@ export function buildBooleanTools() {
             return out;
         },
     });
-    return { truth_table, logic_eval, logic_equiv, logic_convert };
+    const logic_minimize = defineTool({
+        name: 'logic_minimize',
+        description: 'Reduce a boolean expression to a minimum sum of products (Quine–McCluskey): the prime implicants, the '
+            + 'essential ones, and a cover of minimum term count (ties broken by fewest literals). Optional dontCare '
+            + 'minterm indices are treated as "may be 0 or 1", which is how a cover gets smaller than the canonical DNF: '
+            + 'with dontCare [6, 7] the term "a & !b" over a,b,c collapses to "a". '
+            + 'Minterm indices use the same numbering as truth_table (vars[0] is the most significant bit). '
+            + EXPR_DOC
+            + ' At most 8 variables. Returns "" for a function that is false on every row and "1" when the cover is the '
+            + 'constant 1. Use this when you need the smallest SOP rather than the canonical one.',
+        parameters: {
+            expr: { type: 'string', required: true, description: 'Boolean expression, e.g. "a & b | a & !b".' },
+            dontCare: {
+                type: 'array',
+                items: { type: 'number' },
+                description: 'Optional minterm indices that may be 0 or 1 (same numbering as truth_table), e.g. [6, 7]. '
+                    + 'Minterms already true are harmless. Omit for exact minimization of the expression alone.',
+            },
+        },
+        output: {
+            schema: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    valid: { type: 'boolean', required: true },
+                    error: { type: 'string' },
+                    expr: { type: 'string' },
+                    vars: { type: 'array', items: { type: 'string' } },
+                    nVars: { type: 'number' },
+                    minterms: { type: 'array', items: { type: 'number' } },
+                    dontCares: { type: 'array', items: { type: 'number' } },
+                    primeImplicants: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                term: { type: 'string', required: true },
+                                signature: { type: 'string', required: true },
+                                literals: { type: 'number', required: true },
+                                covers: { type: 'array', items: { type: 'number' }, required: true },
+                                coversDontCare: { type: 'array', items: { type: 'number' }, required: true },
+                            },
+                        },
+                    },
+                    essentialTerms: { type: 'array', items: { type: 'string' } },
+                    minimal: { type: 'string' },
+                    termCount: { type: 'number' },
+                    literalCount: { type: 'number' },
+                    exact: { type: 'boolean' },
+                    unique: { type: 'boolean' },
+                    note: { type: 'string' },
+                },
+            },
+            render: (_args, value) => [{ type: 'text', text: renderMinimize(value) }],
+        },
+        async execute(args) {
+            const parsed = tryParse(args.expr);
+            if (!parsed.ok)
+                return { valid: false, error: parsed.error };
+            const detected = expressionVars(parsed.node);
+            if (detected.length > MAX_TABLE_VARS) {
+                return {
+                    valid: false,
+                    error: `expression involves ${detected.length} variables (${detected.join(', ')}); logic_minimize supports at most ${MAX_TABLE_VARS}`,
+                };
+            }
+            const total = 2 ** detected.length;
+            const requested = args.dontCare === undefined ? [] : args.dontCare;
+            const bad = requested.filter((m) => !Number.isInteger(m) || m < 0 || m >= total);
+            if (bad.length > 0) {
+                return {
+                    valid: false,
+                    error: `invalid dontCare minterm(s) ${bad.join(', ')}: expected integers in 0..${total - 1} (${detected.length} variables)`,
+                };
+            }
+            const dcSet = [...new Set(requested)].sort((a, b) => a - b);
+            const table = truthTable(parsed.node, detected);
+            const outcome = minimizeFunction(detected, table.minterms, dcSet);
+            const notes = [];
+            if (outcome.note !== undefined)
+                notes.push(outcome.note);
+            const alreadyTrue = dcSet.filter((m) => table.minterms.includes(m));
+            if (alreadyTrue.length > 0) {
+                notes.push(`dontCare minterm(s) ${alreadyTrue.join(', ')} are already true in the expression; don't-cares only widen the cover where the expression is false`);
+            }
+            const out = {
+                valid: true,
+                expr: args.expr,
+                vars: detected,
+                nVars: detected.length,
+                minterms: table.minterms,
+                dontCares: dcSet,
+                primeImplicants: outcome.implicants.map((pi) => ({
+                    term: pi.term,
+                    signature: pi.signature,
+                    literals: pi.literals,
+                    covers: pi.covers,
+                    coversDontCare: pi.coversDontCare,
+                })),
+                essentialTerms: outcome.essentials,
+                minimal: outcome.minimal,
+                termCount: outcome.termCount,
+                literalCount: outcome.literalCount,
+                exact: outcome.exact,
+                unique: outcome.unique,
+            };
+            if (notes.length > 0)
+                out.note = notes.join('; ');
+            return out;
+        },
+    });
+    return { truth_table, logic_eval, logic_equiv, logic_convert, logic_minimize };
 }
 //# sourceMappingURL=tools.js.map

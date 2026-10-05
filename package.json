@@ -1,7 +1,7 @@
 {
   "name": "dsh-boolean",
-  "version": "0.1.3",
-  "description": "Boolean algebra toolbox for DeepSeek Harness (dsh): parse logic expressions (NOT/AND/OR/XOR/IMPLIES/IFF, symbols or words), full truth tables with minterm/maxterm summary, single-assignment evaluation, equivalence checking with counterexamples, and canonical conversion (NNF/DNF/CNF/NAND-only/NOR-only) — zero runtime dependencies",
+  "version": "0.2.0",
+  "description": "Boolean algebra toolbox for DeepSeek Harness (dsh): parse logic expressions (NOT/AND/OR/XOR/IMPLIES/IFF, symbols or words), full truth tables with minterm/maxterm summary, single-assignment evaluation, equivalence checking with counterexamples, canonical conversion (NNF/DNF/CNF/NAND-only/NOR-only), and minimum sum-of-products minimization (Quine–McCluskey, optional don't-cares) — zero runtime dependencies",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,6 +26,9 @@
     "truth-table",
     "dnf",
     "cnf",
+    "quine-mccluskey",
+    "logic-minimization",
+    "karnaugh-map",
     "math-tools"
   ],
   "license": "MIT",
