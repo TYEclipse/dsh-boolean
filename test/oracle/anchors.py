@@ -327,6 +327,98 @@ def minimize(expr: str, dont_care: list[int]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Karnaugh-map layout (independent of src/kmap.ts)
+# --------------------------------------------------------------------------- #
+
+# rows/cols per variable count: the first variables go to the rows
+KMAP_AXES = {1: (0, 1), 2: (1, 1), 3: (1, 2), 4: (2, 2)}
+
+
+def gray_codes(bits: int) -> list[int]:
+    """Binary-reflected Gray code: successive entries (and first/last) differ in one bit."""
+    return [i ^ (i >> 1) for i in range(1 << bits)]
+
+
+def _label(value: int, bits: int) -> str:
+    return "" if bits == 0 else format(value, "0{}b".format(bits))
+
+
+def _contiguous(values: list[int]) -> bool:
+    distinct = sorted(set(values))
+    if len(distinct) <= 1:
+        return True
+    return distinct[-1] - distinct[0] + 1 == len(distinct)
+
+
+def kmap(expr: str, dont_care: list[int]) -> dict:
+    """Lay the function out on a Gray-coded grid and place the minimal cover on it."""
+    node = parse(expr)
+    vars_ = variables(node)
+    n = len(vars_)
+    if n not in KMAP_AXES:
+        raise AssertionError(f"no K-map layout for {n} variables")
+    table = table_of(expr)
+    on = set(table["minterms"])
+    dc = {m for m in dont_care if 0 <= m < (1 << n)} - on
+    result = minimize(expr, dont_care)
+
+    n_rows, n_cols = KMAP_AXES[n]
+    row_codes = gray_codes(n_rows)
+    col_codes = gray_codes(n_cols)
+    row_at = {code: i for i, code in enumerate(row_codes)}
+    col_at = {code: i for i, code in enumerate(col_codes)}
+
+    grids = []
+    for row_code in row_codes:
+        line = ""
+        for col_code in col_codes:
+            m = (row_code << n_cols) | col_code
+            line += "1" if m in on else ("x" if m in dc else "0")
+        grids.append(line)
+
+    def cell_of(m: int) -> tuple[int, int, int]:
+        bits = minterm_bits(m, n)
+        row_bits = 0
+        for bit in bits[:n_rows]:
+            row_bits = (row_bits << 1) | bit
+        col_bits = 0
+        for bit in bits[n_rows:]:
+            col_bits = (col_bits << 1) | bit
+        return (row_at[row_bits], col_at[col_bits], m)
+
+    prime_by_term = {pi["term"]: pi for pi in result["primeImplicants"]}
+    terms = [] if result["minimal"] == "" else result["minimal"].split(" | ")
+    groups = []
+    for term in terms:
+        pi = prime_by_term[term]
+        covered = sorted(_cover(tuple(None if ch == "-" else int(ch) for ch in pi["signature"]), n)
+                         & (on | dc))
+        cells = [cell_of(m) for m in covered]
+        groups.append({
+            "term": term,
+            "signature": pi["signature"],
+            "literals": pi["literals"],
+            "essential": term in result["essentialTerms"],
+            "cells": cells,
+            "wraps": not (_contiguous([c[0] for c in cells]) and _contiguous([c[1] for c in cells])),
+        })
+
+    return {
+        "expr": expr,
+        "vars": vars_,
+        "rowVars": vars_[:n_rows],
+        "colVars": vars_[n_rows:],
+        "columnLabels": [_label(code, n_cols) for code in col_codes],
+        "rowLabels": [_label(code, n_rows) for code in row_codes],
+        "grid": grids,
+        "minterms": sorted(on),
+        "dontCares": sorted(dc),
+        "minimal": result["minimal"],
+        "groups": groups,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Curated case tables (inputs live here; expected values are computed above)
 # --------------------------------------------------------------------------- #
 
@@ -359,10 +451,28 @@ MINIMIZE_CASES = [
     ("a & b & c", [4]),                           # don't-cares present but unused
 ]
 
+# K-map cases (expression, don't-care minterms) — 1 to 4 variables only
+KMAP_CASES = [
+    ("a", []),                                    # one variable: a single row of two
+    ("a & b", []),                                # 2 variables, one cell
+    ("a & !b | a & c", []),                       # 3 variables, two groups
+    ("a & !b & c | a & !b & !c", [6, 7]),         # don't-cares widen a & !b to a
+    ("!c & (a | !a) & (b | !b)", []),             # 3 variables: the single-literal group wraps across the edge
+    ("!d & (a | !a) & (b | !b) & (c | !c)", []),  # 4 variables: a wrapping group on the column axis
+    ("((a & b) | (a & c)) | (b & c)", []),        # 3-variable majority
+    ("a ^ b ^ c", []),                            # three-way XOR: four single-cell groups
+    ("(a & b) | (c & d)", []),                    # 4 variables, two disjoint terms
+    ("a & (b | c)", [1, 2]),                      # three equal-cost covers
+    ("a & !a", []),                               # contradiction: no groups
+    ("a | !a", []),                               # tautology: one group over the whole map
+    ("a & b & c", [4]),                           # don't-cares present but unused
+]
+
 CONSTANTS = {
     "maxTableVars": 8,
     "maxExprLength": 512,
-    "toolCount": 5,
+    "toolCount": 6,
+    "maxKmapVars": 4,
     "defaultNodeBudget": 300000,
     "legacyExprCount": len(LEGACY_EXPRS),
     "legacyEquivCount": len(LEGACY_EQUIV),
@@ -377,6 +487,7 @@ def all_anchors() -> dict:
             "equiv": [{"a": a, "b": b, "equivalent": ok} for a, b, ok in LEGACY_EQUIV],
         },
         "minimize": [minimize(e, dc) for e, dc in MINIMIZE_CASES],
+        "kmap": [kmap(e, dc) for e, dc in KMAP_CASES],
     }
 
 
@@ -455,6 +566,48 @@ def check(data: dict) -> int:
         outside = covered - on - set(item["dontCares"])
         expect(not outside, f"{item['expr']}: cover invents true rows outside on ∪ dc")
 
+    # D. K-map layout invariants (structure only — no reader-visible number is assumed)
+    for item in data["kmap"]:
+        n = len(item["vars"])
+        n_rows, n_cols = KMAP_AXES[n]
+        rows_seq = gray_codes(n_rows)
+        cols_seq = gray_codes(n_cols)
+        expect(item["columnLabels"] == [_label(c, n_cols) for c in cols_seq], f"{item['expr']}: column labels")
+        expect(item["rowLabels"] == [_label(r, n_rows) for r in rows_seq], f"{item['expr']}: row labels")
+        expect(len(item["grid"]) == (1 << n_rows), f"{item['expr']}: row count")
+        expect(all(len(line) == (1 << n_cols) for line in item["grid"]), f"{item['expr']}: column count")
+        on = set(item["minterms"])
+        dc = set(item["dontCares"])
+        seen = {}
+        for r, row_code in enumerate(rows_seq):
+            for c, col_code in enumerate(cols_seq):
+                seen[(row_code << n_cols) | col_code] = item["grid"][r][c]
+        expect(sorted(seen) == list(range(1 << n)), f"{item['expr']}: every minterm appears exactly once")
+        for m, ch in seen.items():
+            want = "1" if m in on else ("x" if m in dc else "0")
+            expect(ch == want, f"{item['expr']}: cell m{m} drawn as {ch}, expected {want}")
+        # groups: size matches the cube, all cells inside on ∪ dc, and they cover the on-set
+        covered_by_groups = set()
+        for group in item["groups"]:
+            free = group["signature"].count("-")
+            expect(len(group["cells"]) == (1 << free), f"{item['expr']}: {group['term']} cell count")
+            for row, col, m in group["cells"]:
+                expect(m in (on | dc), f"{item['expr']}: {group['term']} circles a cell that must be 0 (m{m})")
+                expect(item["grid"][row][col] in ("1", "x"), f"{item['expr']}: {group['term']} grid position")
+            covered_by_groups |= {m for _, _, m in group["cells"]}
+        expect(on <= covered_by_groups, f"{item['expr']}: the groups miss on-minterms")
+        if item["minimal"] == "":
+            expect(item["groups"] == [], f"{item['expr']}: a contradiction has no groups")
+
+    # E. Gray-code property itself: one bit changes per step, including the wrap
+    for bits in (1, 2):
+        codes = gray_codes(bits)
+        expect(sorted(codes) == list(range(1 << bits)), f"gray({bits}) is a permutation")
+        for i, code in enumerate(codes):
+            nxt = codes[(i + 1) % len(codes)]
+            diff = bin(code ^ nxt).count("1")
+            expect(diff == 1, f"gray({bits}) step {i} changes {diff} bits")
+
     for label in failures:
         print(f"❌ {label}", file=sys.stderr)
     print(f"{'✅' if not failures else '❌'} oracle self-check: {len(failures)} failure(s)")
@@ -496,7 +649,16 @@ def main(argv: list[str] | None = None) -> int:
             for pi in item["primeImplicants"]:
                 print(f"   PI {pi['term']:<22} sig={pi['signature']} lit={pi['literals']} "
                       f"on={pi['covers']} dc={pi['coversDontCare']}")
-        print("\n== C. constants ==")
+        print("\n== C. kmap anchors ==")
+        for item in data["kmap"]:
+            print(f"{item['expr']} dc={item['dontCares']} vars={item['vars']}")
+            print(f"   axes rows={item['rowVars']} cols={item['colVars']} colLabels={item['columnLabels']} "
+                  f"rowLabels={item['rowLabels']}")
+            print(f"   grid={item['grid']} minterms={item['minterms']} minimal={item['minimal']!r}")
+            for group in item["groups"]:
+                print(f"   group {group['term']:<20} sig={group['signature']} lit={group['literals']} "
+                      f"essential={group['essential']} wraps={group['wraps']} cells={group['cells']}")
+        print("\n== D. constants ==")
         print(json.dumps(data["constants"], ensure_ascii=False))
     if args.check:
         return check(data)

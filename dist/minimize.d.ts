@@ -40,6 +40,8 @@ export interface Implicant {
 export interface MinimizeOutcome {
     /** Every prime implicant, ordered by (literals, signature). */
     implicants: Implicant[];
+    /** The implicants that make up `minimal`, in the order they appear in the answer. */
+    selected: Implicant[];
     /** Terms of the essential prime implicants, in implicant order. */
     essentials: string[];
     /** Minimal cover as a sum-of-products string; `''` for a contradiction, `1` for a constant true cover. */

@@ -2,6 +2,10 @@
 
 > 版本口径：patch 修 bug/补测试｜minor 新增用户可见功能｜major 破坏性变更。安装：`dsh plugin --profile web add github:TYEclipse/dsh-boolean`
 
+## [0.3.0] — 2026-10-24
+### Minor · R78
+- [自主进化] R78 新增 logic_kmap（卡诺图布局 + 覆盖项圈格反查 + 边折返标注）与 logic_minimize 的 coverTerms
+
 ## [0.2.0] — 2026-10-06
 ### Minor · R61
 - 新增第五个工具 **`logic_minimize`**：Quine–McCluskey 最小化到和之积，输出素蕴含项、必要素蕴含项与**项数最少**的覆盖（并列按文字数、再按字典序定序，并如实报告 `unique`）。可选 `dontCare`（无关项最小项下标）——等价于卡诺图那一招：例如 `a & !b & c | a & !b & !c` 配 `dontCare: [6, 7]` 直接化简为 `a`。搜索穷尽（带节点预算），预算耗尽时标 `exact: false` 并返回「必要素蕴含项 + 贪心」，绝不谎称已最小。

@@ -284,8 +284,16 @@ export function minimizeFunction(vars, on, dc, options = {}) {
     }
     const termBySig = new Map(raw.map((item) => [item.signature, item.term]));
     const minimal = sigsOut.map((sig) => termBySig.get(sig) ?? sig).join(' | ');
+    const sigToInfo = new Map(raw.map((item) => [item.signature, toInfo(item)]));
+    const selected = [];
+    for (const sig of sigsOut) {
+        const info = sigToInfo.get(sig);
+        if (info !== undefined)
+            selected.push(info);
+    }
     const out = {
         implicants: raw.map(toInfo),
+        selected,
         essentials: essentialIdx.map((i) => raw[i].term),
         minimal,
         termCount: sigsOut.length,

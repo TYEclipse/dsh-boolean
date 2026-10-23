@@ -231,9 +231,9 @@ describe('logic_minimize tool', () => {
   const tools = buildBooleanTools()
   const run = tools.logic_minimize.execute as unknown as Exec
 
-  it('is registered alongside the other four tools', () => {
+  it('is registered alongside the other five tools', () => {
     expect(Object.keys(tools).sort()).toEqual(
-      ['logic_convert', 'logic_equiv', 'logic_eval', 'logic_minimize', 'truth_table'].sort(),
+      ['logic_convert', 'logic_equiv', 'logic_eval', 'logic_kmap', 'logic_minimize', 'truth_table'].sort(),
     )
   })
 

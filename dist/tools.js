@@ -1,15 +1,17 @@
 /**
- * Tool definitions for dsh-boolean: five boolean-algebra tools via defineTool.
+ * Tool definitions for dsh-boolean: six boolean-algebra tools via defineTool.
  *   truth_table    — full truth table + minterm/maxterm summary + canonical DNF/CNF
  *   logic_eval     — evaluate an expression under one complete assignment
  *   logic_equiv    — equivalence check of two expressions over all rows
  *   logic_convert  — canonical conversion: nnf / dnf / cnf / nand / nor
  *   logic_minimize — minimum sum-of-products (Quine–McCluskey), with don't-cares
+ *   logic_kmap     — Karnaugh-map layout of a function plus the cells each cover term circles
  *
  * @module dsh-boolean/tools
  */
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { BooleanParseError, MAX_TABLE_VARS, cnfFromMaxterms, dnfFromMinterms, evaluate, expressionVars, nandForm, norForm, parseExpression, render, toNnf, truthTable, } from "./boolean.js";
+import { kmapLayout, MAX_KMAP_VARS, renderKmapText } from "./kmap.js";
 import { minimizeFunction } from "./minimize.js";
 const CONVERT_OPS = ['nnf', 'dnf', 'cnf', 'nand', 'nor'];
 const EXPR_DOC = 'Operators (precedence high to low): NOT !/not/¬, AND &/and/∧, XOR ^/xor/⊕, OR |/or/∨, IMPLIES ->/=>/→, IFF <->/<=>/↔. '
@@ -134,7 +136,7 @@ function renderMinimize(value) {
     const note = result.note === undefined ? '' : `\n  note: ${result.note}`;
     return lines.join('\n') + note;
 }
-/** Build all four boolean tool definitions. */
+/** Build all six boolean tool definitions. */
 export function buildBooleanTools() {
     const truth_table = defineTool({
         name: 'truth_table',
@@ -484,6 +486,7 @@ export function buildBooleanTools() {
                         },
                     },
                     essentialTerms: { type: 'array', items: { type: 'string' } },
+                    coverTerms: { type: 'array', items: { type: 'string' } },
                     minimal: { type: 'string' },
                     termCount: { type: 'number' },
                     literalCount: { type: 'number' },
@@ -539,6 +542,7 @@ export function buildBooleanTools() {
                     coversDontCare: pi.coversDontCare,
                 })),
                 essentialTerms: outcome.essentials,
+                coverTerms: outcome.selected.map((item) => item.term),
                 minimal: outcome.minimal,
                 termCount: outcome.termCount,
                 literalCount: outcome.literalCount,
@@ -550,6 +554,161 @@ export function buildBooleanTools() {
             return out;
         },
     });
-    return { truth_table, logic_eval, logic_equiv, logic_convert, logic_minimize };
+    const logic_kmap = defineTool({
+        name: 'logic_kmap',
+        description: 'Lay a boolean function out as a Karnaugh map and show which cells each minimal-cover term circles. '
+            + 'Cells are addressed by two Gray-coded axes, so neighbouring cells (including across the map edges) differ '
+            + 'in exactly one variable — that is what lets a group of adjacent 1s collapse into one product term. '
+            + 'The map axes follow the variable count: 1 variable = one row of 2, 2 variables = 1 × 2, 3 variables = '
+            + '1 row of 2 (row) × 4 columns, 4 variables = 2 rows × 4 columns. Every group reports its cells as '
+            + 'row/column/minterm coordinates, whether it is essential, and whether it wraps around an edge. '
+            + 'Cells are 1 (must be true), x (don\'t-care, optional) or 0. '
+            + 'At most 4 variables — larger functions are not readable on a map grid; use logic_minimize for those. '
+            + 'Minterm indices use the same numbering as truth_table (vars[0] is the most significant bit). '
+            + EXPR_DOC
+            + ' Use this when you need to show or check a manual grouping rather than just the final expression.',
+        parameters: {
+            expr: { type: 'string', required: true, description: 'Boolean expression, e.g. "a & !b | a & c".' },
+            dontCare: {
+                type: 'array',
+                items: { type: 'number' },
+                description: 'Optional minterm indices that may be 0 or 1 (same numbering as truth_table), e.g. [6, 7]. '
+                    + 'They are drawn as x cells and can be circled to make a group larger.',
+            },
+        },
+        output: {
+            schema: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    valid: { type: 'boolean', required: true },
+                    error: { type: 'string' },
+                    expr: { type: 'string' },
+                    vars: { type: 'array', items: { type: 'string' } },
+                    nVars: { type: 'number' },
+                    rowVars: { type: 'array', items: { type: 'string' } },
+                    colVars: { type: 'array', items: { type: 'string' } },
+                    columnLabels: { type: 'array', items: { type: 'string' } },
+                    rows: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                label: { type: 'string', required: true },
+                                cells: {
+                                    type: 'array',
+                                    required: true,
+                                    items: {
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        properties: {
+                                            minterm: { type: 'number', required: true },
+                                            value: { type: 'string', required: true },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    groups: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                term: { type: 'string', required: true },
+                                signature: { type: 'string', required: true },
+                                literals: { type: 'number', required: true },
+                                essential: { type: 'boolean', required: true },
+                                wraps: { type: 'boolean', required: true },
+                                cells: {
+                                    type: 'array',
+                                    required: true,
+                                    items: {
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        properties: {
+                                            row: { type: 'number', required: true },
+                                            col: { type: 'number', required: true },
+                                            minterm: { type: 'number', required: true },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    minterms: { type: 'array', items: { type: 'number' } },
+                    dontCares: { type: 'array', items: { type: 'number' } },
+                    minimal: { type: 'string' },
+                    termCount: { type: 'number' },
+                    literalCount: { type: 'number' },
+                    map: { type: 'string' },
+                    note: { type: 'string' },
+                },
+            },
+            render: (_args, value) => {
+                const result = value;
+                if (!result.valid)
+                    return [{ type: 'text', text: `logic_kmap failed: ${result.error}` }];
+                const body = result.map;
+                const note = result.note === undefined ? '' : `\nnote: ${result.note}`;
+                return [{ type: 'text', text: body + note }];
+            },
+        },
+        async execute(args) {
+            const parsed = tryParse(args.expr);
+            if (!parsed.ok)
+                return { valid: false, error: parsed.error };
+            const detected = expressionVars(parsed.node);
+            if (detected.length > MAX_KMAP_VARS) {
+                return {
+                    valid: false,
+                    error: `expression involves ${detected.length} variables (${detected.join(', ')}); logic_kmap lays out at most ${MAX_KMAP_VARS} (a 5+ variable map is not a readable grid) — use logic_minimize for that function`,
+                };
+            }
+            const total = 2 ** detected.length;
+            const requested = args.dontCare === undefined ? [] : args.dontCare;
+            const bad = requested.filter((m) => !Number.isInteger(m) || m < 0 || m >= total);
+            if (bad.length > 0) {
+                return {
+                    valid: false,
+                    error: `invalid dontCare minterm(s) ${bad.join(', ')}: expected integers in 0..${total - 1} (${detected.length} variables)`,
+                };
+            }
+            const dcSet = [...new Set(requested)].sort((a, b) => a - b);
+            const table = truthTable(parsed.node, detected);
+            const outcome = minimizeFunction(detected, table.minterms, dcSet);
+            const layout = kmapLayout(detected, table.minterms, dcSet, outcome.selected, outcome.essentials);
+            const notes = [];
+            if (outcome.note !== undefined)
+                notes.push(outcome.note);
+            const alreadyTrue = dcSet.filter((m) => table.minterms.includes(m));
+            if (alreadyTrue.length > 0) {
+                notes.push(`dontCare minterm(s) ${alreadyTrue.join(', ')} are already true in the expression, so they are drawn as 1 rather than x`);
+            }
+            const out = {
+                valid: true,
+                expr: args.expr,
+                vars: detected,
+                nVars: detected.length,
+                rowVars: layout.rowVars,
+                colVars: layout.colVars,
+                columnLabels: layout.columnLabels,
+                rows: layout.rows,
+                groups: layout.groups,
+                minterms: table.minterms,
+                dontCares: dcSet,
+                minimal: outcome.minimal,
+                termCount: outcome.termCount,
+                literalCount: outcome.literalCount,
+                map: renderKmapText(layout, args.expr, outcome.minimal),
+            };
+            if (notes.length > 0)
+                out.note = notes.join('; ');
+            return out;
+        },
+    });
+    return { truth_table, logic_eval, logic_equiv, logic_convert, logic_minimize, logic_kmap };
 }
 //# sourceMappingURL=tools.js.map

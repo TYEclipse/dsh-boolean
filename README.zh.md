@@ -17,7 +17,7 @@
 dsh plugin --profile web add github:TYEclipse/dsh-boolean
 ```
 
-重启会话后五个工具即注册到 `tools`。需要 PATH 中有 `pnpm`。
+重启会话后六个工具即注册到 `tools`。需要 PATH 中有 `pnpm`。
 
 ## 工具一览
 
@@ -27,7 +27,8 @@ dsh plugin --profile web add github:TYEclipse/dsh-boolean
 | `logic_eval` | 在完整赋值下求值（`trueVars`/`falseVars` 两表）；缺变量时报错，绝不静默默认。 |
 | `logic_equiv` | 在两个表达式合并后的全部行上比对等价性；不等价时报告差异行数并给出一个具体反例。 |
 | `logic_convert` | 转为 `nnf` / `dnf` / `cnf` / `nand` / `nor` 规范形式。DNF/CNF 来自真值表（8 变量上限）；nnf/nand/nor 为结构化改写，不限规模。 |
-| `logic_minimize` | 最小化到和之积（Quine–McCluskey）：列出素蕴含项、必要素蕴含项，并给出**项数最少**的覆盖（并列时按文字数最少、再按字典序定序）。可选 `dontCare` 无关项下标，替代手画卡诺图。 |
+| `logic_minimize` | 最小化到和之积（Quine–McCluskey）：列出素蕴含项、必要素蕴含项，并给出**项数最少**的覆盖（并列时按文字数最少、再按字典序定序）。可选 `dontCare` 无关项下标，替代手画卡诺图。同时按答案顺序给出覆盖里到底用了哪几项（`coverTerms`）。 |
+| `logic_kmap` | 把函数画成卡诺图（1–4 变量，两轴走格雷码，格子里是 `1`/`x`/`0`），并把最小覆盖里每一项**圈到的格子**反查出来：每组给出 `row`/`col`/`minterm` 坐标、是否必要素蕴含项、以及是否跨边界折返（wrap）。 |
 
 ## 表达式语法
 
@@ -106,6 +107,29 @@ logic_minimize { expr: "a & (b | c)", dontCare: [1, 2] }
 → a & b | a & c   （已证明最小，存在并列——共 3 个 2 项覆盖）
 ```
 
+`logic_kmap` 把同一套推理画成卡诺图，并说清每一项圈到了哪几格：
+
+```
+logic_kmap { expr: "a & !b | a & c" }
+→ K-map of a & !b | a & c over 3 variable(s) (rows a | cols b, c)
+      00 01 11 10
+  0 |  0  0  0  0
+  1 |  1  1  1  0
+  minimal cover: a & !b | a & c
+    a & !b: 2 cell(s) — r1c0(m4) r1c1(m5) [essential, contiguous]
+    a & c: 2 cell(s) — r1c1(m5) r1c2(m7) [essential, contiguous]
+```
+
+无关项画成 `x`，圈组可以把它圈进来：
+
+```
+logic_kmap { expr: "a & !b & c | a & !b & !c", dontCare: [6, 7] }
+→ 1 |  1  1  x  x   minimal cover: a
+    a: 4 cell(s) — r1c0(m4) r1c1(m5) r1c3(m6) r1c2(m7)
+```
+
+跨边界折返的组标 `wraps an edge`——`!c` 在三个变量下仍是一个 4 格组，正是靠这条边。
+
 ## 说明与限制
 
 - 真值表类工具上限 **8 变量**（256 行）；`nnf`/`nand`/`nor` 结构化转换无此限制。
@@ -116,6 +140,8 @@ logic_minimize { expr: "a & (b | c)", dontCare: [1, 2] }
 - `logic_minimize` 对恒假函数返回 `""`、对常数覆盖返回 `1`。搜索是穷尽的（带节点预算）；万一
   预算耗尽，结果会标 `exact: false`，返回「必要素蕴含项 + 贪心」的覆盖，而不会谎称已最小。
   并列按「项数 → 文字数 → 字典序」固定判定，同一输入永远给同一字符串。
+- `logic_kmap` 最多画 **4 变量**（5 变量以上不是能读的网格），超出直接报错而不是截断；更宽的函数用
+  `logic_minimize`。它圈的是返回覆盖里的那几项，不是全部素蕴含项。
 
 ## 开发
 

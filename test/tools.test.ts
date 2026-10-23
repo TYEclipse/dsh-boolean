@@ -43,9 +43,9 @@ describe('resolveConfig', () => {
 describe('buildBooleanTools', () => {
   const tools = buildBooleanTools()
 
-  it('exposes all five tools under their canonical names', () => {
+  it('exposes all six tools under their canonical names', () => {
     expect(Object.keys(tools).sort()).toEqual(
-      ['logic_convert', 'logic_equiv', 'logic_eval', 'logic_minimize', 'truth_table'].sort(),
+      ['logic_convert', 'logic_equiv', 'logic_eval', 'logic_kmap', 'logic_minimize', 'truth_table'].sort(),
     )
   })
 

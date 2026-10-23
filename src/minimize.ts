@@ -43,6 +43,8 @@ export interface Implicant {
 export interface MinimizeOutcome {
   /** Every prime implicant, ordered by (literals, signature). */
   implicants: Implicant[]
+  /** The implicants that make up `minimal`, in the order they appear in the answer. */
+  selected: Implicant[]
   /** Terms of the essential prime implicants, in implicant order. */
   essentials: string[]
   /** Minimal cover as a sum-of-products string; `''` for a contradiction, `1` for a constant true cover. */
@@ -336,8 +338,15 @@ export function minimizeFunction(
   }
   const termBySig = new Map(raw.map((item) => [item.signature, item.term]))
   const minimal = sigsOut.map((sig) => termBySig.get(sig) ?? sig).join(' | ')
+  const sigToInfo = new Map(raw.map((item) => [item.signature, toInfo(item)]))
+  const selected: Implicant[] = []
+  for (const sig of sigsOut) {
+    const info = sigToInfo.get(sig)
+    if (info !== undefined) selected.push(info)
+  }
   const out: MinimizeOutcome = {
     implicants: raw.map(toInfo),
+    selected,
     essentials: essentialIdx.map((i) => (raw[i] as RawImplicant).term),
     minimal,
     termCount: sigsOut.length,

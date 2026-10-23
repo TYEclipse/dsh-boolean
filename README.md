@@ -19,7 +19,7 @@ the bookkeeping exactly, one expression at a time.
 dsh plugin --profile web add github:TYEclipse/dsh-boolean
 ```
 
-Restart the profile session (or start a new one) and the five tools are registered
+Restart the profile session (or start a new one) and the six tools are registered
 under `tools` for every agent. Requires `pnpm` on `PATH` (the plugin host resolves it).
 
 ## Tools
@@ -30,7 +30,8 @@ under `tools` for every agent. Requires `pnpm` on `PATH` (the plugin host resolv
 | `logic_eval` | Evaluates an expression under one complete assignment (`trueVars` / `falseVars`); missing variables are reported, never silently defaulted. |
 | `logic_equiv` | Compares two expressions over all rows of the combined table; reports how many rows differ and one concrete counterexample when they are not equivalent. |
 | `logic_convert` | Converts an expression to `nnf`, `dnf`, `cnf`, `nand`, or `nor` canonical form. DNF/CNF come from the truth table (8-variable cap); nnf/nand/nor are structural rewrites without a cap. |
-| `logic_minimize` | Minimizes to a sum of products (Quine–McCluskey): prime implicants, essential ones, and a cover of minimum term count (ties broken by fewest literals, then reading order). Optional `dontCare` minterm indices replace a hand-run Karnaugh map. |
+| `logic_minimize` | Minimizes to a sum of products (Quine–McCluskey): prime implicants, essential ones, and a cover of minimum term count (ties broken by fewest literals, then reading order). Optional `dontCare` minterm indices replace a hand-run Karnaugh map. It also names the terms that form the returned cover (`coverTerms`), in answer order. |
+| `logic_kmap` | Lays the function out as a Karnaugh map (1–4 variables, Gray-coded axes, cells `1`/`x`/`0`) and maps every term of the minimal cover back to the cells it circles — each group reports its `row`/`col`/`minterm` cells, whether it is essential, and whether it wraps around an edge. |
 
 ## Expression syntax
 
@@ -113,6 +114,30 @@ logic_minimize { expr: "a & (b | c)", dontCare: [1, 2] }
 → a & b | a & c   (proven minimum, a tie was resolved — three 2-term covers exist)
 ```
 
+`logic_kmap` draws the same reasoning as a map and says which cells each term circles:
+
+```
+logic_kmap { expr: "a & !b | a & c" }
+→ K-map of a & !b | a & c over 3 variable(s) (rows a | cols b, c)
+      00 01 11 10
+  0 |  0  0  0  0
+  1 |  1  1  1  0
+  minimal cover: a & !b | a & c
+    a & !b: 2 cell(s) — r1c0(m4) r1c1(m5) [essential, contiguous]
+    a & c: 2 cell(s) — r1c1(m5) r1c2(m7) [essential, contiguous]
+```
+
+Don't-care cells show up as `x` and groups are allowed to circle them:
+
+```
+logic_kmap { expr: "a & !b & c | a & !b & !c", dontCare: [6, 7] }
+→ 1 |  1  1  x  x   minimal cover: a
+    a: 4 cell(s) — r1c0(m4) r1c1(m5) r1c3(m6) r1c2(m7)
+```
+
+A group that leaves one edge and re-enters on the opposite one is marked `wraps an edge` — that is
+why `!c` over three variables is still a single 4-cell group.
+
 ## Notes & limits
 
 - Truth-table tools cap at **8 variables** (256 rows); `nnf`/`nand`/`nor` conversions are
@@ -128,6 +153,9 @@ logic_minimize { expr: "a & (b | c)", dontCare: [1, 2] }
   the result is flagged `exact: false` and the cover is essentials + greedy rather than claimed
   minimal. Ties are resolved by fewest terms, then fewest literals, then reading order, so the same
   input always yields the same string.
+- `logic_kmap` lays out at most **4 variables** (a 5+ variable map is not a readable grid) and says so
+  instead of truncating; use `logic_minimize` for wider functions. Its groups are exactly the terms of
+  the returned cover, not every prime implicant.
 
 ## Development
 
