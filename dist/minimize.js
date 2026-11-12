@@ -349,4 +349,88 @@ function popcount(value, nVars) {
             count += 1;
     return count;
 }
+/** Render the complement of a product cube as a sum of literals (`1` bit → negated). */
+export function sumTermOf(signature, vars) {
+    const parts = [];
+    for (let i = 0; i < vars.length; i += 1) {
+        const ch = signature[i];
+        if (ch === '-')
+            continue;
+        const name = vars[i];
+        parts.push(ch === '1' ? `!${name}` : name);
+    }
+    return parts.length === 0 ? '0' : parts.join(' | ');
+}
+/** Does the cube described by `signature` contain minterm `m`? */
+function cubeHolds(signature, m, nVars) {
+    for (let i = 0; i < nVars; i += 1) {
+        const ch = signature[i];
+        if (ch === '-')
+            continue;
+        const bit = (m & bitFor(nVars, i)) !== 0 ? '1' : '0';
+        if (ch !== bit)
+            return false;
+    }
+    return true;
+}
+/** Evaluate a product of sums on one minterm (a sum term is 0 exactly on its cube). */
+export function evaluatePos(terms, m, nVars) {
+    for (const term of terms) {
+        if (cubeHolds(term.signature, m, nVars))
+            return false;
+    }
+    return true;
+}
+/**
+ * Reduce a boolean function to a minimum product of sums.
+ *
+ * @param vars variable names, ordered as in the rest of the plugin (vars[0] = MSB)
+ * @param zeros minterms where the function must be 0 (the on-set of ¬F)
+ * @param dc don't-care minterms (may be 0 or 1); overlap with `zeros` is harmless
+ */
+export function minimizePosFunction(vars, zeros, dc, options = {}) {
+    const sop = minimizeFunction(vars, zeros, dc, options);
+    const nVars = vars.length;
+    const toSum = (item) => ({
+        sum: sumTermOf(item.signature, vars),
+        signature: item.signature,
+        literals: item.literals,
+        falseOn: item.covers,
+        falseOnDontCare: item.coversDontCare,
+    });
+    const selected = sop.selected.map(toSum);
+    const notes = [];
+    let minimal;
+    if (selected.length === 0) {
+        minimal = '1';
+        notes.push('the function is true on every row, so its minimum product of sums is the empty product 1');
+    }
+    else if (selected.length === 1 && selected[0].signature === '-'.repeat(nVars)) {
+        minimal = '0';
+        notes.push('the function is false on every row, so its minimum product of sums is the constant 0');
+    }
+    else {
+        minimal = selected.map((term) => `(${term.sum})`).join(' & ');
+    }
+    if (!sop.exact) {
+        notes.push('search budget reached: the returned product of sums is the best found (essentials + greedy), not proven minimal');
+    }
+    const byTerm = new Map(sop.implicants.map((item) => [item.term, item]));
+    const out = {
+        terms: sop.implicants.map(toSum),
+        selected,
+        essentials: sop.essentials.map((term) => {
+            const item = byTerm.get(term);
+            return item === undefined ? term : sumTermOf(item.signature, vars);
+        }),
+        minimal,
+        termCount: selected.length,
+        literalCount: sop.literalCount,
+        exact: sop.exact,
+        unique: sop.unique,
+    };
+    if (notes.length > 0)
+        out.note = notes.join('; ');
+    return out;
+}
 //# sourceMappingURL=minimize.js.map

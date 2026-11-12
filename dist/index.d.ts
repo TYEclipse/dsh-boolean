@@ -1,12 +1,14 @@
 /**
  * dsh-boolean — boolean algebra toolbox for DeepSeek Harness.
  *
- * Five pure-logic tools, zero runtime dependencies:
- *   truth_table    — full truth table + minterm/maxterm summary + canonical DNF/CNF
- *   logic_eval     — evaluate an expression under one complete assignment
- *   logic_equiv    — equivalence check of two expressions over all rows
- *   logic_convert  — canonical conversion: nnf / dnf / cnf / nand / nor
- *   logic_minimize — minimum sum-of-products (Quine–McCluskey, optional don't-cares)
+ * Seven pure-logic tools, zero runtime dependencies:
+ *   truth_table        — full truth table + minterm/maxterm summary + canonical DNF/CNF
+ *   logic_eval         — evaluate an expression under one complete assignment
+ *   logic_equiv        — equivalence check of two expressions over all rows
+ *   logic_convert      — canonical conversion: nnf / dnf / cnf / nand / nor
+ *   logic_minimize     — minimum sum-of-products (Quine–McCluskey, optional don't-cares)
+ *   logic_minimize_pos — minimum product-of-sums (the same engine run on the complement)
+ *   logic_kmap         — Karnaugh-map layout with the cells each cover term circles
  *
  * All computation is local and deterministic; no network, no processes, no eval.
  *

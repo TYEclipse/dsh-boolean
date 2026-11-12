@@ -19,7 +19,7 @@ the bookkeeping exactly, one expression at a time.
 dsh plugin --profile web add github:TYEclipse/dsh-boolean
 ```
 
-Restart the profile session (or start a new one) and the six tools are registered
+Restart the profile session (or start a new one) and the seven tools are registered
 under `tools` for every agent. Requires `pnpm` on `PATH` (the plugin host resolves it).
 
 ## Tools
@@ -31,6 +31,7 @@ under `tools` for every agent. Requires `pnpm` on `PATH` (the plugin host resolv
 | `logic_equiv` | Compares two expressions over all rows of the combined table; reports how many rows differ and one concrete counterexample when they are not equivalent. |
 | `logic_convert` | Converts an expression to `nnf`, `dnf`, `cnf`, `nand`, or `nor` canonical form. DNF/CNF come from the truth table (8-variable cap); nnf/nand/nor are structural rewrites without a cap. |
 | `logic_minimize` | Minimizes to a sum of products (Quine–McCluskey): prime implicants, essential ones, and a cover of minimum term count (ties broken by fewest literals, then reading order). Optional `dontCare` minterm indices replace a hand-run Karnaugh map. It also names the terms that form the returned cover (`coverTerms`), in answer order. |
+| `logic_minimize_pos` | The same engine read the other way round: a minimum **product of sums**. It minimizes the complement and applies De Morgan, so each clause such as `(a | !b)` is false on one cube of the function and costs the literals its product term cost. Reports the prime implicates, the essential ones and their `falseOn` minterms, then re-evaluates the answer against the truth table (`matchesTruthTable`) so a wrong clause cannot pass silently. A tautology is `1`, a contradiction `0`. |
 | `logic_kmap` | Lays the function out as a Karnaugh map (1–4 variables, Gray-coded axes, cells `1`/`x`/`0`) and maps every term of the minimal cover back to the cells it circles — each group reports its `row`/`col`/`minterm` cells, whether it is essential, and whether it wraps around an edge. |
 
 ## Expression syntax

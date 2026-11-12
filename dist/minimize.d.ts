@@ -74,4 +74,44 @@ export declare function termOf(cube: Cube, vars: readonly string[]): string;
  * @param dc don't-care minterms (may be 0 or 1); overlap with `on` is harmless
  */
 export declare function minimizeFunction(vars: readonly string[], on: readonly number[], dc: readonly number[], options?: MinimizeOptions): MinimizeOutcome;
+/** One sum term (prime implicate) of a minimum product of sums. */
+export interface SumTerm {
+    /** Sum of literals, e.g. `a | !b`; `0` for the constant-false term. */
+    sum: string;
+    /** The cube on which this sum term is false, same `1`/`0`/`-` notation as product terms. */
+    signature: string;
+    /** Number of literals in the sum. */
+    literals: number;
+    /** Minterms where the function must be 0, i.e. where this sum term is false. */
+    falseOn: number[];
+    /** Don't-care minterms this sum term is also false on. */
+    falseOnDontCare: number[];
+}
+export interface PosMinimizeOutcome {
+    /** Every prime implicate, ordered by (literals, signature). */
+    terms: SumTerm[];
+    /** The sum terms that make up `minimal`, in the order they appear in the answer. */
+    selected: SumTerm[];
+    /** Sum terms of the essential prime implicates, in term order. */
+    essentials: string[];
+    /** Minimal product of sums; `1` for a tautology, `0` for a contradiction. */
+    minimal: string;
+    termCount: number;
+    literalCount: number;
+    exact: boolean;
+    unique: boolean;
+    note?: string;
+}
+/** Render the complement of a product cube as a sum of literals (`1` bit → negated). */
+export declare function sumTermOf(signature: string, vars: readonly string[]): string;
+/** Evaluate a product of sums on one minterm (a sum term is 0 exactly on its cube). */
+export declare function evaluatePos(terms: readonly SumTerm[], m: number, nVars: number): boolean;
+/**
+ * Reduce a boolean function to a minimum product of sums.
+ *
+ * @param vars variable names, ordered as in the rest of the plugin (vars[0] = MSB)
+ * @param zeros minterms where the function must be 0 (the on-set of ¬F)
+ * @param dc don't-care minterms (may be 0 or 1); overlap with `zeros` is harmless
+ */
+export declare function minimizePosFunction(vars: readonly string[], zeros: readonly number[], dc: readonly number[], options?: MinimizeOptions): PosMinimizeOutcome;
 //# sourceMappingURL=minimize.d.ts.map

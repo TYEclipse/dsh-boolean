@@ -1,11 +1,12 @@
 /**
- * Tool definitions for dsh-boolean: six boolean-algebra tools via defineTool.
- *   truth_table    — full truth table + minterm/maxterm summary + canonical DNF/CNF
- *   logic_eval     — evaluate an expression under one complete assignment
- *   logic_equiv    — equivalence check of two expressions over all rows
- *   logic_convert  — canonical conversion: nnf / dnf / cnf / nand / nor
- *   logic_minimize — minimum sum-of-products (Quine–McCluskey), with don't-cares
- *   logic_kmap     — Karnaugh-map layout of a function plus the cells each cover term circles
+ * Tool definitions for dsh-boolean: seven boolean-algebra tools via defineTool.
+ *   truth_table        — full truth table + minterm/maxterm summary + canonical DNF/CNF
+ *   logic_eval         — evaluate an expression under one complete assignment
+ *   logic_equiv        — equivalence check of two expressions over all rows
+ *   logic_convert      — canonical conversion: nnf / dnf / cnf / nand / nor
+ *   logic_minimize     — minimum sum-of-products (Quine–McCluskey), with don't-cares
+ *   logic_minimize_pos — minimum product-of-sums (the same engine on the complement)
+ *   logic_kmap         — Karnaugh-map layout of a function plus the cells each cover term circles
  *
  * @module dsh-boolean/tools
  */
@@ -27,7 +28,13 @@ import {
   type Node,
 } from './boolean.ts'
 import { kmapLayout, MAX_KMAP_VARS, renderKmapText } from './kmap.ts'
-import { minimizeFunction, type MinimizeOutcome } from './minimize.ts'
+import {
+  evaluatePos,
+  minimizeFunction,
+  minimizePosFunction,
+  type MinimizeOutcome,
+  type SumTerm,
+} from './minimize.ts'
 
 export interface ToolSet {
   truth_table: ToolDefinition
@@ -35,6 +42,7 @@ export interface ToolSet {
   logic_equiv: ToolDefinition
   logic_convert: ToolDefinition
   logic_minimize: ToolDefinition
+  logic_minimize_pos: ToolDefinition
   logic_kmap: ToolDefinition
 }
 
@@ -268,6 +276,62 @@ function renderMinimize(value: unknown): string {
   return lines.join('\n') + note
 }
 
+/** ---- logic_minimize_pos ---- */
+
+interface PosResult {
+  valid: boolean
+  error?: string
+  expr?: string
+  vars?: string[]
+  nVars?: number
+  minterms?: number[]
+  zeroMinterms?: number[]
+  dontCares?: number[]
+  primeImplicates?: SumTerm[]
+  essentialTerms?: string[]
+  coverTerms?: string[]
+  minimal?: string
+  termCount?: number
+  literalCount?: number
+  exact?: boolean
+  unique?: boolean
+  matchesTruthTable?: boolean
+  note?: string
+}
+
+function renderMinimizePos(value: unknown): string {
+  const result = value as PosResult
+  if (!result.valid) return `logic_minimize_pos failed: ${result.error}`
+  const vars = result.vars as string[]
+  const lines: string[] = []
+  lines.push(`minimal POS of ${result.expr} over ${vars.join(', ')}: ${result.minimal}`)
+  lines.push(
+    `  ${result.termCount} sum term(s), ${result.literalCount} literal(s)`
+    + ` (${result.exact ? 'proven minimum' : 'best found'}, ${result.unique ? 'unique' : 'a tie was resolved'})`,
+  )
+  lines.push(
+    `  zeros m[${(result.zeroMinterms as number[]).join(', ')}]`
+    + (result.dontCares === undefined || result.dontCares.length === 0
+      ? ''
+      : ` dc[${result.dontCares.join(', ')}]`),
+  )
+  const implicates = (result.primeImplicates ?? []) as SumTerm[]
+  if (implicates.length > 0) {
+    const parts = implicates.map((term) => {
+      const dc = term.falseOnDontCare.length === 0 ? '' : ` dc[${term.falseOnDontCare.join(', ')}]`
+      return `${term.sum} m[${term.falseOn.join(', ')}]${dc}`
+    })
+    lines.push(`  prime implicates: ${parts.join('; ')}`)
+  }
+  const essentials = result.essentialTerms as string[]
+  if (essentials.length > 0) lines.push(`  essential: ${essentials.join(', ')}`)
+  lines.push(
+    `  agrees with the truth table on every non-don't-care row: ${result.matchesTruthTable === true ? 'yes' : 'NO'}`,
+  )
+  const note = result.note === undefined ? '' : `\n  note: ${result.note}`
+  return lines.join('\n') + note
+}
+
 /** ---- logic_kmap ---- */
 
 interface KmapResult {
@@ -297,7 +361,7 @@ interface KmapResult {
   note?: string
 }
 
-/** Build all six boolean tool definitions. */
+/** Build all seven boolean tool definitions. */
 export function buildBooleanTools(): ToolSet {
   const truth_table = defineTool({
     name: 'truth_table',
@@ -705,6 +769,139 @@ export function buildBooleanTools(): ToolSet {
     },
   })
 
+  const logic_minimize_pos = defineTool({
+    name: 'logic_minimize_pos',
+    description:
+      'Reduce a boolean expression to a minimum product of sums — the other canonical shape, and the one a '
+      + 'NAND/NOR gate network falls out of. Every answer is a product of clauses such as "(a | !b)": each '
+      + 'clause is false on exactly one cube of the function, and the clauses together equal the function. '
+      + 'How it is derived: the minimum sum of products of the complement ¬F (true exactly where F is false) '
+      + 'is computed with the same Quine–McCluskey engine, then each product term becomes one clause by '
+      + 'De Morgan — a variable the product fixed to 1 appears negated in the clause, so the clause costs the '
+      + 'same number of literals. Optional dontCare minterm indices may be 0 or 1 and can only shrink the '
+      + 'answer on rows where the function is not already true (a don\'t-care that is true stays true). '
+      + 'Minterm indices use the same numbering as truth_table (vars[0] is the most significant bit). '
+      + EXPR_DOC
+      + ' At most 8 variables. Returns "1" for a tautology (the empty product) and "0" for a contradiction. '
+      + 'The answer is re-evaluated against the truth table on every non-don\'t-care row and reported as '
+      + 'matchesTruthTable, so a wrong clause cannot pass silently. '
+      + 'Use this when the required form is a product of sums rather than a sum of products.',
+    parameters: {
+      expr: { type: 'string', required: true, description: 'Boolean expression, e.g. "a & b | !a & c".' },
+      dontCare: {
+        type: 'array',
+        items: { type: 'number' },
+        description:
+          'Optional minterm indices that may be 0 or 1 (same numbering as truth_table), e.g. [6, 7]. '
+          + 'They widen what a clause is allowed to exclude. Omit for exact minimization of the expression alone.',
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          valid: { type: 'boolean', required: true },
+          error: { type: 'string' },
+          expr: { type: 'string' },
+          vars: { type: 'array', items: { type: 'string' } },
+          nVars: { type: 'number' },
+          minterms: { type: 'array', items: { type: 'number' } },
+          zeroMinterms: { type: 'array', items: { type: 'number' } },
+          dontCares: { type: 'array', items: { type: 'number' } },
+          primeImplicates: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                sum: { type: 'string', required: true },
+                signature: { type: 'string', required: true },
+                literals: { type: 'number', required: true },
+                falseOn: { type: 'array', items: { type: 'number' }, required: true },
+                falseOnDontCare: { type: 'array', items: { type: 'number' }, required: true },
+              },
+            },
+          },
+          essentialTerms: { type: 'array', items: { type: 'string' } },
+          coverTerms: { type: 'array', items: { type: 'string' } },
+          minimal: { type: 'string' },
+          termCount: { type: 'number' },
+          literalCount: { type: 'number' },
+          exact: { type: 'boolean' },
+          unique: { type: 'boolean' },
+          matchesTruthTable: { type: 'boolean' },
+          note: { type: 'string' },
+        },
+      },
+      render: (_args: { expr: string }, value: unknown) => [{ type: 'text', text: renderMinimizePos(value) }],
+    },
+    async execute(args: { expr: string; dontCare?: number[] }): Promise<PosResult> {
+      const parsed = tryParse(args.expr)
+      if (!parsed.ok) return { valid: false, error: parsed.error }
+      const detected = expressionVars(parsed.node)
+      if (detected.length > MAX_TABLE_VARS) {
+        return {
+          valid: false,
+          error: `expression involves ${detected.length} variables (${detected.join(', ')}); logic_minimize_pos supports at most ${MAX_TABLE_VARS}`,
+        }
+      }
+      const total = 2 ** detected.length
+      const requested = args.dontCare === undefined ? [] : args.dontCare
+      const bad = requested.filter((m) => !Number.isInteger(m) || m < 0 || m >= total)
+      if (bad.length > 0) {
+        return {
+          valid: false,
+          error: `invalid dontCare minterm(s) ${bad.join(', ')}: expected integers in 0..${total - 1} (${detected.length} variables)`,
+        }
+      }
+      const table = truthTable(parsed.node, detected)
+      const onSet = new Set(table.minterms)
+      const zeros: number[] = []
+      for (let m = 0; m < total; m += 1) if (!onSet.has(m)) zeros.push(m)
+      const dcSet = [...new Set(requested)].sort((a, b) => a - b)
+      const dcEffective = dcSet.filter((m) => !onSet.has(m))
+      const outcome = minimizePosFunction(detected, zeros, dcEffective)
+      let matchesTruthTable = true
+      for (let m = 0; m < total; m += 1) {
+        if (dcEffective.includes(m)) continue
+        const got = evaluatePos(outcome.selected, m, detected.length)
+        if (got !== onSet.has(m)) {
+          matchesTruthTable = false
+          break
+        }
+      }
+      const notes: string[] = []
+      if (outcome.note !== undefined) notes.push(outcome.note)
+      const droppedTrue = dcSet.filter((m) => onSet.has(m))
+      if (droppedTrue.length > 0) {
+        notes.push(
+          `dontCare minterm(s) ${droppedTrue.join(', ')} are true in the expression, so no clause may exclude them; they were ignored`,
+        )
+      }
+      const out: PosResult = {
+        valid: true,
+        expr: args.expr,
+        vars: detected,
+        nVars: detected.length,
+        minterms: table.minterms,
+        zeroMinterms: zeros,
+        dontCares: dcEffective,
+        primeImplicates: outcome.terms,
+        essentialTerms: outcome.essentials,
+        coverTerms: outcome.selected.map((term) => term.sum),
+        minimal: outcome.minimal,
+        termCount: outcome.termCount,
+        literalCount: outcome.literalCount,
+        exact: outcome.exact,
+        unique: outcome.unique,
+        matchesTruthTable,
+      }
+      if (notes.length > 0) out.note = notes.join('; ')
+      return out
+    },
+  })
+
   const logic_kmap = defineTool({
     name: 'logic_kmap',
     description:
@@ -859,5 +1056,5 @@ export function buildBooleanTools(): ToolSet {
     },
   })
 
-  return { truth_table, logic_eval, logic_equiv, logic_convert, logic_minimize, logic_kmap }
+  return { truth_table, logic_eval, logic_equiv, logic_convert, logic_minimize, logic_minimize_pos, logic_kmap }
 }

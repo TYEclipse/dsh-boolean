@@ -402,3 +402,132 @@ function popcount(value: number, nVars: number): number {
   for (let i = 0; i < nVars; i += 1) if ((value & bitFor(nVars, i)) !== 0) count += 1
   return count
 }
+
+/* ------------------------------------------------------------------------- *
+ * Product-of-sums dual (v0.4.0)
+ *
+ * A minimum CNF is the same problem as a minimum SOP read backwards: the
+ * product of sums of F is the complement of the sum of products of ¬F, so each
+ * prime implicant of ¬F becomes one sum term (De Morgan) and the cost of a sum
+ * term equals the cost of the product term it came from. Variables that the
+ * product fixed to 1 appear negated in the sum (`!a & b` → `a | !b`), free
+ * variables appear in neither.
+ * ------------------------------------------------------------------------- */
+
+/** One sum term (prime implicate) of a minimum product of sums. */
+export interface SumTerm {
+  /** Sum of literals, e.g. `a | !b`; `0` for the constant-false term. */
+  sum: string
+  /** The cube on which this sum term is false, same `1`/`0`/`-` notation as product terms. */
+  signature: string
+  /** Number of literals in the sum. */
+  literals: number
+  /** Minterms where the function must be 0, i.e. where this sum term is false. */
+  falseOn: number[]
+  /** Don't-care minterms this sum term is also false on. */
+  falseOnDontCare: number[]
+}
+
+export interface PosMinimizeOutcome {
+  /** Every prime implicate, ordered by (literals, signature). */
+  terms: SumTerm[]
+  /** The sum terms that make up `minimal`, in the order they appear in the answer. */
+  selected: SumTerm[]
+  /** Sum terms of the essential prime implicates, in term order. */
+  essentials: string[]
+  /** Minimal product of sums; `1` for a tautology, `0` for a contradiction. */
+  minimal: string
+  termCount: number
+  literalCount: number
+  exact: boolean
+  unique: boolean
+  note?: string
+}
+
+/** Render the complement of a product cube as a sum of literals (`1` bit → negated). */
+export function sumTermOf(signature: string, vars: readonly string[]): string {
+  const parts: string[] = []
+  for (let i = 0; i < vars.length; i += 1) {
+    const ch = signature[i] as string
+    if (ch === '-') continue
+    const name = vars[i] as string
+    parts.push(ch === '1' ? `!${name}` : name)
+  }
+  return parts.length === 0 ? '0' : parts.join(' | ')
+}
+
+/** Does the cube described by `signature` contain minterm `m`? */
+function cubeHolds(signature: string, m: number, nVars: number): boolean {
+  for (let i = 0; i < nVars; i += 1) {
+    const ch = signature[i] as string
+    if (ch === '-') continue
+    const bit = (m & bitFor(nVars, i)) !== 0 ? '1' : '0'
+    if (ch !== bit) return false
+  }
+  return true
+}
+
+/** Evaluate a product of sums on one minterm (a sum term is 0 exactly on its cube). */
+export function evaluatePos(terms: readonly SumTerm[], m: number, nVars: number): boolean {
+  for (const term of terms) {
+    if (cubeHolds(term.signature, m, nVars)) return false
+  }
+  return true
+}
+
+/**
+ * Reduce a boolean function to a minimum product of sums.
+ *
+ * @param vars variable names, ordered as in the rest of the plugin (vars[0] = MSB)
+ * @param zeros minterms where the function must be 0 (the on-set of ¬F)
+ * @param dc don't-care minterms (may be 0 or 1); overlap with `zeros` is harmless
+ */
+export function minimizePosFunction(
+  vars: readonly string[],
+  zeros: readonly number[],
+  dc: readonly number[],
+  options: MinimizeOptions = {},
+): PosMinimizeOutcome {
+  const sop = minimizeFunction(vars, zeros, dc, options)
+  const nVars = vars.length
+  const toSum = (item: Implicant): SumTerm => ({
+    sum: sumTermOf(item.signature, vars),
+    signature: item.signature,
+    literals: item.literals,
+    falseOn: item.covers,
+    falseOnDontCare: item.coversDontCare,
+  })
+  const selected = sop.selected.map(toSum)
+  const notes: string[] = []
+  let minimal: string
+  if (selected.length === 0) {
+    minimal = '1'
+    notes.push('the function is true on every row, so its minimum product of sums is the empty product 1')
+  } else if (selected.length === 1 && (selected[0] as SumTerm).signature === '-'.repeat(nVars)) {
+    minimal = '0'
+    notes.push('the function is false on every row, so its minimum product of sums is the constant 0')
+  } else {
+    minimal = selected.map((term) => `(${term.sum})`).join(' & ')
+  }
+  if (!sop.exact) {
+    notes.push(
+      'search budget reached: the returned product of sums is the best found (essentials + greedy), not proven minimal',
+    )
+  }
+  const byTerm = new Map(sop.implicants.map((item) => [item.term, item]))
+  const out: PosMinimizeOutcome = {
+    terms: sop.implicants.map(toSum),
+    selected,
+    essentials: sop.essentials.map((term) => {
+      const item = byTerm.get(term)
+      return item === undefined ? term : sumTermOf(item.signature, vars)
+    }),
+    minimal,
+    termCount: selected.length,
+    literalCount: sop.literalCount,
+    exact: sop.exact,
+    unique: sop.unique,
+  }
+  if (notes.length > 0) out.note = notes.join('; ')
+  return out
+}

@@ -327,6 +327,90 @@ def minimize(expr: str, dont_care: list[int]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Product-of-sums dual (independent of src/minimize.ts's POS branch)
+# --------------------------------------------------------------------------- #
+
+def _sum_term(pattern, vars_: list[str]) -> str:
+    """De Morgan of a product cube: fixed-1 variables appear negated."""
+    parts = [f"!{v}" if bit == 1 else v for v, bit in zip(vars_, pattern) if bit is not None]
+    return " | ".join(parts) if parts else "0"
+
+
+def minimize_pos(expr: str, dont_care: list[int]) -> dict:
+    """Minimum product of sums: minimise the complement, then De Morgan each term.
+
+    The complement is minimised with ``minimize()`` on the *textual* complement
+    ``!(expr)`` — a different input to the same independent engine, so a bug in
+    the plugin's dual mapping cannot hide behind the oracle's own assumptions.
+    Every answer is then re-evaluated row by row against the truth table.
+    """
+    node = parse(expr)
+    vars_ = variables(node)
+    n = len(vars_)
+    total = 1 << n
+    table = table_of(expr)
+    on = set(table["minterms"])
+    dc = {m for m in dont_care if 0 <= m < total} - on
+    zeros = [m for m in range(total) if m not in on]
+
+    sop = minimize(f"!({expr})", sorted(dc))
+    by_term = {pi["term"]: pi for pi in sop["primeImplicants"]}
+    cover = [] if sop["minimal"] == "" else sop["minimal"].split(" | ")
+    selected = [
+        {"sum": _sum_term([None if ch == "-" else int(ch) for ch in by_term[t]["signature"]], vars_),
+         "signature": by_term[t]["signature"],
+         "literals": by_term[t]["literals"]}
+        for t in cover
+    ]
+    if not selected:
+        minimal = "1"
+    elif len(selected) == 1 and selected[0]["signature"] == "-" * n:
+        minimal = "0"
+    else:
+        minimal = " & ".join(f"({item['sum']})" for item in selected)
+
+    # row-by-row verification against the original expression (don't-cares excluded)
+    matches = True
+    for m in range(total):
+        if m in dc:
+            continue
+        bits = minterm_bits(m, n)
+        value = True
+        for item in selected:
+            if all(ch == "-" or int(ch) == bit for ch, bit in zip(item["signature"], bits)):
+                value = False  # this clause is false here
+                break
+        if value != (m in on):
+            matches = False
+            break
+
+    return {
+        "expr": expr,
+        "vars": vars_,
+        "minterms": sorted(on),
+        "zeroMinterms": zeros,
+        "dontCares": sorted(dc),
+        "minimal": minimal,
+        "termCount": len(selected),
+        "literalCount": sop["literalCount"],
+        "primeImplicantCount": sop["primeImplicantCount"],
+        "primeImplicates": [
+            {"sum": _sum_term([None if ch == "-" else int(ch) for ch in pi["signature"]], vars_),
+             "signature": pi["signature"],
+             "literals": pi["literals"],
+             "falseOn": pi["covers"],
+             "falseOnDontCare": pi["coversDontCare"]}
+            for pi in sop["primeImplicants"]
+        ],
+        "essentialTerms": [_sum_term([None if ch == "-" else int(ch) for ch in by_term[t]["signature"]], vars_)
+                           for t in sop["essentialTerms"]],
+        "unique": sop["unique"],
+        "minimumCoverCount": sop["minimumCoverCount"],
+        "matchesTruthTable": matches,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Karnaugh-map layout (independent of src/kmap.ts)
 # --------------------------------------------------------------------------- #
 
@@ -468,10 +552,25 @@ KMAP_CASES = [
     ("a & b & c", [4]),                           # don't-cares present but unused
 ]
 
+# POS cases (expression, don't-care minterms) — mirrors the SOP case table
+POS_CASES = [
+    ("a & b | a & !b", []),                       # absorption: POS of a is a single clause
+    ("((a & b) | (a & c)) | (b & c)", []),        # 3-variable majority
+    ("a ^ b ^ c", []),                            # three-way XOR: four 3-literal clauses
+    ("a & !b & c | a & !b & !c", [6, 7]),         # don't-cares widen a clause
+    ("a & (b | c)", [1, 2]),                      # three equal-cost covers -> not unique
+    ("a & !a", []),                               # contradiction: the constant 0
+    ("a | !a", []),                               # tautology: the empty product 1
+    ("a & b", [0, 1, 2]),                         # don't-cares cover the whole table
+    ("!a & !b", []),                              # already minimal
+    ("(a & b) | (c & d)", []),                    # two disjoint products, 4 vars
+    ("a & b & c", [4]),                           # don't-cares present but unused
+]
+
 CONSTANTS = {
     "maxTableVars": 8,
     "maxExprLength": 512,
-    "toolCount": 6,
+    "toolCount": 7,
     "maxKmapVars": 4,
     "defaultNodeBudget": 300000,
     "legacyExprCount": len(LEGACY_EXPRS),
@@ -487,6 +586,7 @@ def all_anchors() -> dict:
             "equiv": [{"a": a, "b": b, "equivalent": ok} for a, b, ok in LEGACY_EQUIV],
         },
         "minimize": [minimize(e, dc) for e, dc in MINIMIZE_CASES],
+        "minimizePos": [minimize_pos(e, dc) for e, dc in POS_CASES],
         "kmap": [kmap(e, dc) for e, dc in KMAP_CASES],
     }
 
@@ -565,6 +665,36 @@ def check(data: dict) -> int:
         expect(on <= covered, f"{item['expr']}: cover misses on-minterms")
         outside = covered - on - set(item["dontCares"])
         expect(not outside, f"{item['expr']}: cover invents true rows outside on ∪ dc")
+
+    # F. product-of-sums dual (v0.4.0): textbook pins, dual cost, row-exactness
+    expect(minimize_pos("a & b", [])["minimal"] == "(a) & (b)", "POS of a conjunction is a product of unit clauses")
+    expect(minimize_pos("a | b", [])["minimal"] == "(a | b)", "POS of a disjunction is a single clause")
+    expect(minimize_pos("a ^ b", [])["minimal"] == "(a | b) & (!a | !b)", "POS of xor is the two-clause textbook form")
+    expect(minimize_pos("a | !a", [])["minimal"] == "1", "POS of a tautology is the empty product 1")
+    expect(minimize_pos("a & !a", [])["minimal"] == "0", "POS of a contradiction is the constant 0")
+    for expr, dc in POS_CASES:
+        # the POS of F costs exactly what the minimum SOP of ¬F costs (De Morgan preserves literals)
+        expect(minimize_pos(expr, dc)["literalCount"] == minimize(f"!({expr})", sorted(dc))["literalCount"],
+               f"{expr}: POS cost must equal the complement's SOP cost")
+    for item in data["minimizePos"]:
+        vars_ = item["vars"]
+        dc = set(item["dontCares"])
+        on = set(item["minterms"])
+        zeros = set(item["zeroMinterms"])
+        expect(item["matchesTruthTable"] is True, f"POS {item['expr']}: oracle row check failed")
+        for term in item["primeImplicates"]:
+            expect(set(term["falseOn"]) <= zeros, f"POS {item['expr']}: clause {term['sum']} is false on a true row")
+        for m in range(1 << len(vars_)):
+            if m in dc:
+                continue
+            env = {v: bool(b) for v, b in zip(vars_, minterm_bits(m, len(vars_)))}
+            if item["minimal"] == "0":
+                got = False
+            elif item["minimal"] == "1":
+                got = True
+            else:
+                got = evaluate(parse(item["minimal"]), env)
+            expect(got == (m in on), f"POS {item['expr']}: rendered form disagrees at m{m}")
 
     # D. K-map layout invariants (structure only — no reader-visible number is assumed)
     for item in data["kmap"]:
@@ -658,7 +788,18 @@ def main(argv: list[str] | None = None) -> int:
             for group in item["groups"]:
                 print(f"   group {group['term']:<20} sig={group['signature']} lit={group['literals']} "
                       f"essential={group['essential']} wraps={group['wraps']} cells={group['cells']}")
-        print("\n== D. constants ==")
+        print("\n== D. minimize_pos anchors ==")
+        for item in data["minimizePos"]:
+            print(f"{item['expr']} dc={item['dontCares']}")
+            print(f"   zeros={item['zeroMinterms']} minimal={item['minimal']!r} "
+                  f"terms={item['termCount']} literals={item['literalCount']} "
+                  f"primes={item['primeImplicantCount']} unique={item['unique']} "
+                  f"covers={item['minimumCoverCount']} matches={item['matchesTruthTable']}")
+            print(f"   essential={item['essentialTerms']}")
+            for pi in item["primeImplicates"]:
+                print(f"   PI {pi['sum']:<22} sig={pi['signature']} lit={pi['literals']} "
+                      f"falseOn={pi['falseOn']} dc={pi['falseOnDontCare']}")
+        print("\n== E. constants ==")
         print(json.dumps(data["constants"], ensure_ascii=False))
     if args.check:
         return check(data)

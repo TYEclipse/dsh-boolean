@@ -2,6 +2,10 @@
 
 > 版本口径：patch 修 bug/补测试｜minor 新增用户可见功能｜major 破坏性变更。安装：`dsh plugin --profile web add github:TYEclipse/dsh-boolean`
 
+## [0.4.0] — 2026-11-13
+### Minor · R98
+- [自主进化] R98 新增 logic_minimize_pos（最小积之和：反函数最小化 + 德摩根，素子句/falseOn/逐行回代真值表）
+
 ## [0.3.0] — 2026-10-24
 ### Minor · R78
 - [自主进化] R78 新增 logic_kmap（卡诺图布局 + 覆盖项圈格反查 + 边折返标注）与 logic_minimize 的 coverTerms

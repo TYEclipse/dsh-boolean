@@ -17,7 +17,7 @@
 dsh plugin --profile web add github:TYEclipse/dsh-boolean
 ```
 
-重启会话后六个工具即注册到 `tools`。需要 PATH 中有 `pnpm`。
+重启会话后七个工具即注册到 `tools`。需要 PATH 中有 `pnpm`。
 
 ## 工具一览
 
@@ -28,6 +28,7 @@ dsh plugin --profile web add github:TYEclipse/dsh-boolean
 | `logic_equiv` | 在两个表达式合并后的全部行上比对等价性；不等价时报告差异行数并给出一个具体反例。 |
 | `logic_convert` | 转为 `nnf` / `dnf` / `cnf` / `nand` / `nor` 规范形式。DNF/CNF 来自真值表（8 变量上限）；nnf/nand/nor 为结构化改写，不限规模。 |
 | `logic_minimize` | 最小化到和之积（Quine–McCluskey）：列出素蕴含项、必要素蕴含项，并给出**项数最少**的覆盖（并列时按文字数最少、再按字典序定序）。可选 `dontCare` 无关项下标，替代手画卡诺图。同时按答案顺序给出覆盖里到底用了哪几项（`coverTerms`）。 |
+| `logic_minimize_pos` | 同一套引擎反过来读：最小**积之和**（product of sums）。做法是最小化反函数再逐项用德摩根，故每条子句（如 `(a \| !b)`）只在一个立方体上为 0，文字数与原乘积项相同。输出素子句（prime implicates）、必要素子句与其 `falseOn` 最小项，然后把答案**逐行回代真值表**（`matchesTruthTable`），写错的子句不会静默通过。重言式给 `1`、矛盾式给 `0`。 |
 | `logic_kmap` | 把函数画成卡诺图（1–4 变量，两轴走格雷码，格子里是 `1`/`x`/`0`），并把最小覆盖里每一项**圈到的格子**反查出来：每组给出 `row`/`col`/`minterm` 坐标、是否必要素蕴含项、以及是否跨边界折返（wrap）。 |
 
 ## 表达式语法
